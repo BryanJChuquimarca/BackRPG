@@ -125,10 +125,11 @@ app.post('/player/', jsonParser, function (req, res) { return __awaiter(void 0, 
                 console.log("Petici\u00F3n recibida al endpoint POST /player/");
                 console.log("Cuerpo recibido:", req.body);
                 playerinfo = req.body;
+                console.log(playerinfo);
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 6, , 7]);
-                queryPlayer = "\n            INSERT INTO players (id, name, health_points, mana_points, strength, magical_damage, defense, critical_chance, critical_damage, experience, level, currency)\n            VALUES ('" + playerinfo.id + "', '" + playerinfo.name + "', " + playerinfo.health_points + ", " + playerinfo.mana_points + ", " + playerinfo.strength + ", " + playerinfo.magical_damage + ", " + playerinfo.defense + ", " + playerinfo.critical_chance + ", " + playerinfo.critical_damage + ", " + playerinfo.experience + ", " + playerinfo.level + ", " + playerinfo.currency + ");\n        ";
+                queryPlayer = "\n            INSERT INTO players (id, name, health_points, mana_points, strength, magical_damage, defense, critical_chance, critical_damage, experience, level, currency, class)\n            VALUES ('" + playerinfo.id + "', '" + playerinfo.name + "', " + playerinfo.health_points + ", " + playerinfo.mana_points + ", " + playerinfo.strength + ", " + playerinfo.magical_damage + ", " + playerinfo.defense + ", " + playerinfo.critical_chance + ", " + playerinfo.critical_damage + ", " + playerinfo.experience + ", " + playerinfo.level + ", " + playerinfo.currency + ", '" + playerinfo.class + "');\n        ";
                 return [4 /*yield*/, db.query(queryPlayer)];
             case 2:
                 db_response_player = _a.sent();
@@ -157,8 +158,39 @@ app.post('/player/', jsonParser, function (req, res) { return __awaiter(void 0, 
         }
     });
 }); });
-app.get('/player/:id/progress', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+app.get('/enemies/:id', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var query, db_response, err_3;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                console.log("Petici\u00F3n recibida al endpoint GET /player/" + req.params.id);
+                _a.label = 1;
+            case 1:
+                _a.trys.push([1, 3, , 4]);
+                query = "SELECT * FROM enemies WHERE id = '" + req.params.id + "' ORDER BY id ASC";
+                return [4 /*yield*/, db.query(query)];
+            case 2:
+                db_response = _a.sent();
+                if (db_response.rows.length > 0) {
+                    console.log("enemigo encontrado:" + db_response.rows[0].id);
+                    res.json(db_response.rows[0]);
+                }
+                else {
+                    console.log("enemigo no encontrado");
+                    res.json("enemigo not found");
+                }
+                return [3 /*break*/, 4];
+            case 3:
+                err_3 = _a.sent();
+                console.error(err_3);
+                res.status(500).send('Internal Server Error');
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/];
+        }
+    });
+}); });
+app.get('/player/:id/progress', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var query, db_response, err_4;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -181,8 +213,8 @@ app.get('/player/:id/progress', function (req, res) { return __awaiter(void 0, v
                 }
                 return [3 /*break*/, 4];
             case 3:
-                err_3 = _a.sent();
-                console.error(err_3);
+                err_4 = _a.sent();
+                console.error(err_4);
                 res.status(500).send('Internal Server Error');
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
@@ -190,7 +222,7 @@ app.get('/player/:id/progress', function (req, res) { return __awaiter(void 0, v
     });
 }); });
 app.get('/player/:id/stats', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var playerId, playerQuery, playerResult, player, gearQuery, gearResult, gear, itemIds, key, items, itemsQuery, itemsResult, totalStats, _i, items_1, item, err_4;
+    var playerId, playerQuery, playerResult, player, gearQuery, gearResult, gear, itemIds, key, items, itemsQuery, itemsResult, totalStats, _i, items_1, item, err_5;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -240,6 +272,7 @@ app.get('/player/:id/stats', function (req, res) { return __awaiter(void 0, void
                     critical_chance: player.critical_chance,
                     critical_damage: player.critical_damage,
                     experience: player.experience,
+                    class: player.class,
                     level: player.level,
                     currency: player.currency
                 };
@@ -256,8 +289,8 @@ app.get('/player/:id/stats', function (req, res) { return __awaiter(void 0, void
                 res.json(totalStats);
                 return [3 /*break*/, 7];
             case 6:
-                err_4 = _a.sent();
-                console.error(err_4);
+                err_5 = _a.sent();
+                console.error(err_5);
                 res.status(500).json({ error: 'Error interno del servidor' });
                 return [3 /*break*/, 7];
             case 7: return [2 /*return*/];
@@ -273,6 +306,7 @@ function shuffleArray(arr) {
     }
     return copy;
 }
+var readyPlayers = {};
 io.on('connection', function (socket) {
     socket.on('disconnect', function () {
         var roomCode = socket.data.room_code;
@@ -385,6 +419,13 @@ io.on('connection', function (socket) {
         salas[roomCode].turnOrder = turnOrder;
         io.to(roomCode).emit('set_turn_order', turnOrder);
     });
+    socket.on('enemigos_seleccionados', function (roomCode, enemy) { return __awaiter(void 0, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            console.log("\uD83D\uDCE3 Enemigos seleccionados por el l\u00EDder de la sala " + roomCode + ":", enemy);
+            io.to("" + roomCode).emit("enemigossala" + roomCode, enemy);
+            return [2 /*return*/];
+        });
+    }); });
 });
 var port = process.env.PORT || 3000;
 server.listen(port, function () {

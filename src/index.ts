@@ -25,6 +25,7 @@ import bodyParser from 'body-parser';
 const jsonParser = bodyParser.json();
 
 import * as db from './db-connection';
+import { Console } from "console";
 let salas: {
     [roomCode: string]: {
         turnOrder: any[]
@@ -58,11 +59,11 @@ app.post('/player/', jsonParser, async (req, res) => {
     console.log(`Cuerpo recibido:`, req.body);
 
     let playerinfo = req.body;
-
+    console.log(playerinfo)
     try {
         let queryPlayer = `
-            INSERT INTO players (id, name, health_points, mana_points, strength, magical_damage, defense, critical_chance, critical_damage, experience, level, currency)
-            VALUES ('${playerinfo.id}', '${playerinfo.name}', ${playerinfo.health_points}, ${playerinfo.mana_points}, ${playerinfo.strength}, ${playerinfo.magical_damage}, ${playerinfo.defense}, ${playerinfo.critical_chance}, ${playerinfo.critical_damage}, ${playerinfo.experience}, ${playerinfo.level}, ${playerinfo.currency});
+            INSERT INTO players (id, name, health_points, mana_points, strength, magical_damage, defense, critical_chance, critical_damage, experience, level, currency, class)
+            VALUES ('${playerinfo.id}', '${playerinfo.name}', ${playerinfo.health_points}, ${playerinfo.mana_points}, ${playerinfo.strength}, ${playerinfo.magical_damage}, ${playerinfo.defense}, ${playerinfo.critical_chance}, ${playerinfo.critical_damage}, ${playerinfo.experience}, ${playerinfo.level}, ${playerinfo.currency}, '${playerinfo.class}');
         `;
 
         let db_response_player = await db.query(queryPlayer);
@@ -87,6 +88,28 @@ app.post('/player/', jsonParser, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send('Error interno del servidor');
+    }
+});
+
+
+app.get('/enemies/:id', async (req, res) => {
+
+    console.log(`Petición recibida al endpoint GET /player/${req.params.id}`);
+
+    try {
+        let query = `SELECT * FROM enemies WHERE id = '${req.params.id}' ORDER BY id ASC`;
+        let db_response = await db.query(query);
+
+        if (db_response.rows.length > 0) {
+            console.log(`enemigo encontrado:${db_response.rows[0].id}`);
+            res.json(db_response.rows[0]);
+        } else {
+            console.log(`enemigo no encontrado`);
+            res.json(`enemigo not found`);
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Internal Server Error');
     }
 });
 
@@ -159,6 +182,7 @@ app.get('/player/:id/stats', async (req, res) => {
             critical_chance: player.critical_chance,
             critical_damage: player.critical_damage,
             experience: player.experience,
+            class: player.class,
             level: player.level,
             currency: player.currency
         };
@@ -191,6 +215,8 @@ function shuffleArray(arr: any[]) {
     }
     return copy;
 }
+
+let readyPlayers = {};
 io.on('connection', (socket: any) => {
 
     socket.on('disconnect', () => {
@@ -334,6 +360,13 @@ io.on('connection', (socket: any) => {
 
         io.to(roomCode).emit('set_turn_order', turnOrder);
     });
+
+    socket.on('enemigos_seleccionados', async (roomCode: any, enemy: any) => {
+        console.log(`📣 Enemigos seleccionados por el líder de la sala ${roomCode}:`, enemy);
+
+        io.to(`${roomCode}`).emit(`enemigossala${roomCode}`, enemy);
+    });
+
 
 
 });
